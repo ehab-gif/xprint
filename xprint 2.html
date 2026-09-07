@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Designer Pro — Auto-Fit</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #e8e8e8;
+        height: 100vh;
+        overflow: hidden;
+        direction: rtl;
+    }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ===== Top Toolbar ===== */
+    .top-toolbar {
+        height: 48px;
+        background: #fff;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 4px;
+        flex-shrink: 0;
+        z-index: 100;
+    }
+    .toolbar-btn {
+        width: 36px; height: 36px;
+        border: none; background: transparent;
+        border-radius: 4px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        color: #555; font-size: 16px;
+        transition: all 0.2s;
+    }
+    .toolbar-btn:hover { background: #f0f0f0; color: #333; }
+    .toolbar-sep { width: 1px; height: 24px; background: #ddd; margin: 0 6px; }
+    .toolbar-label-size {
+        display: flex; align-items: center; gap: 6px;
+        margin-right: auto; font-size: 13px; color: #555;
+    }
+    .toolbar-label-size input {
+        width: 56px; padding: 4px 6px;
+        border: 1px solid #ccc; border-radius: 4px;
+        text-align: center; font-size: 13px;
+    }
+    .zoom-display { font-size: 13px; color: #555; min-width: 45px; text-align: center; }
+
+    /* ===== Main Area ===== */
+    .main-area { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+    /* ===== Left Sidebar ===== */
+    .left-sidebar {
+        width: 64px; background: #fff;
+        border-left: 1px solid #ddd;
+        display: flex; flex-direction: column;
+        align-items: center; padding: 8px 0;
+        gap: 4px; flex-shrink: 0; z-index: 50;
+    }
+    .tool-btn {
+        width: 52px; height: 52px;
+        border: none; background: transparent;
+        border-radius: 6px; cursor: pointer;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 2px; color: #555; font-size: 11px;
+        transition: all 0.2s;
+    }
+    .tool-btn i { font-size: 18px; }
+    .tool-btn:hover, .tool-btn.active { background: #e3f2fd; color: #1976d2; }
+
+    /* ===== Canvas Area ===== */
+    .canvas-area {
+        flex: 1; display: flex; flex-direction: column;
+        background: #f0f0f0; position: relative; overflow: hidden;
+    }
+    .ruler-top {
+        height: 24px; background: #4ecdc4;
+        position: absolute; top: 0; left: 24px; right: 0;
+        z-index: 10; overflow: hidden;
+    }
+    .ruler-left {
+        width: 24px; background: #4ecdc4;
+        position: absolute; top: 24px; left: 0; bottom: 0;
+        z-index: 10; overflow: hidden;
+    }
+    .canvas-wrapper {
+        position: absolute; top: 24px; left: 24px; right: 0; bottom: 0;
+        display: flex; align-items: center; justify-content: center;
+        padding: 30px; overflow: auto;
+    }
+    .canvas {
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+        position: relative;
+        transform-origin: top center;
+        transition: transform 0.2s;
+        flex-shrink: 0;
+    }
+
+    /* ===== Design Elements ===== */
+    .design-element {
+        position: absolute;
+        cursor: move;
+        user-select: none;
+        overflow: visible;
+    }
+    .design-element .content {
+        width: 100%; height: 100%;
+        overflow: hidden;
+    }
+    .design-element.selected {
+        outline: 2px solid #ff9800;
+        z-index: 1000 !important;
+    }
+
+    /* Resize Handles */
+    .resize-handle {
+        width: 8px; height: 8px;
+        background: #ff9800;
+        position: absolute;
+        display: none;
+        z-index: 1001;
+        border: 1px solid #fff;
+    }
+    .design-element.selected .resize-handle { display: block; }
+    .resize-handle.nw { top: -4px; left: -4px; cursor: nw-resize; }
+    .resize-handle.n  { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+    .resize-handle.ne { top: -4px; right: -4px; cursor: ne-resize; }
+    .resize-handle.e  { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+    .resize-handle.se { bottom: -4px; right: -4px; cursor: se-resize; }
+    .resize-handle.s  { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+    .resize-handle.sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+    .resize-handle.w  { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
+
+    /* ===== Right Panel ===== */
+    .right-panel {
+        width: 320px; background: #fff;
+        border-right: 1px solid #ddd;
+        display: flex; flex-direction: column;
+        flex-shrink: 0; overflow-y: auto; z-index: 50;
+    }
+    .panel-header {
+        padding: 15px; border-bottom: 1px solid #eee;
+        font-weight: 600; color: #333; font-size: 15px;
+    }
+    .panel-section {
+        padding: 14px;
+        border-bottom: 1px solid #eee;
+    }
+    .panel-section-title {
+        font-size: 12px; font-weight: 700;
+        color: #777; margin-bottom: 12px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .form-group {
+        flex: 1; display: flex; flex-direction: column; gap: 4px;
+    }
+    .form-group label { font-size: 12px; color: #666; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 6px 10px; border: 1px solid #ddd;
+        border-radius: 4px; font-size: 13px; font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none; border-color: #4ecdc4;
+    }
+    .form-group.full { flex: 1 1 100%; }
+    .textarea-content { min-height: 80px; resize: vertical; }
+
+    .font-size-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .font-size-btn {
+        width: 36px; height: 36px;
+        border: 1px solid #ddd; background: #fff;
+        border-radius: 6px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; color: #555;
+        transition: all 0.2s;
+    }
+    .font-size-btn:hover { background: #e3f2fd; border-color: #4ecdc4; color: #1976d2; }
+    .font-size-btn.reset { width: auto; padding: 0 12px; font-size: 12px; font-weight: 600; }
+    .font-size-display {
+        min-width: 50px; text-align: center;
+        font-weight: bold; color: #1976d2; font-size: 14px;
+    }
+    .auto-badge {
+        background: #e3f2fd; color: #1565c0;
+        font-size: 10px; padding: 2px 8px;
+        border-radius: 10px; font-weight: 600;
+    }
+
+    .align-controls {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+    }
+    .align-btn {
+        flex: 1; height: 34px;
+        border: 1px solid #ddd; background: #fff;
+        border-radius: 6px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; color: #555;
+        transition: all 0.2s;
+    }
+    .align-btn:hover { background: #f5f5f5; }
+    .align-btn.active {
+        background: #e3f2fd; border-color: #4ecdc4; color: #1976d2;
+    }
+
+    .format-btns { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+
+    /* Info bar in panel */
+    .panel-info {
+        background: #fff8e1;
+        border-right: 3px solid #ffc107;
+        padding: 10px 12px;
+        margin: 0 14px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #856404;
+        line-height: 1.6;
+    }
+
+    /* ===== Print ===== */
+    @media print {
+        body * { visibility: hidden; }
+        .canvas-wrapper, .canvas-wrapper * { visibility: visible; }
+        .canvas-wrapper {
+            position: fixed; top: 0; right: 0;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            display: flex; align-items: flex-start; justify-content: flex-start;
+            overflow: visible; background: #fff;
+        }
+        .canvas {
+            box-shadow: none !important;
+            transform: none !important;
+            margin: 0 !important;
+        }
+        .design-element { outline: none !important; }
+        .resize-handle { display: none !important; }
+        .ruler-top, .ruler-left, .left-sidebar, .right-panel, .top-toolbar { display: none !important; }
+    }
+</style>
+</head>
+<body>
+
+<div class="app">
+    <!-- ===== Top Toolbar ===== -->
+    <div class="top-toolbar">
+        <button class="toolbar-btn" onclick="saveDesign()" title="حفظ التصميم"><i class="fas fa-save"></i></button>
+        <button class="toolbar-btn" onclick="printDesign()" title="طباعة"><i class="fas fa-print"></i></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="deleteSelected()" title="حذف العنصر"><i class="fas fa-trash"></i></button>
+        <button class="toolbar-btn" onclick="duplicateSelected()" title="نسخ العنصر"><i class="fas fa-copy"></i></button>
+        <button class="toolbar-btn" onclick="bringToFront()" title="إرسال للأمام"><i class="fas fa-arrow-up"></i></button>
+        <button class="toolbar-btn" onclick="sendToBack()" title="إرسال للخلف"><i class="fas fa-arrow-down"></i></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="zoomOut()" title="تصغير"><i class="fas fa-minus"></i></button>
+        <span class="zoom-display" id="zoomDisplay">100%</span>
+        <button class="toolbar-btn" onclick="zoomIn()" title="تكبير"><i class="fas fa-plus"></i></button>
+        <div class="toolbar-sep"></div>
+        <div class="toolbar-label-size">
+            <label>📐 الملصق:</label>
+            <input type="number" id="labelWidth" value="50" min="20" max="105" step="0.5" onchange="updateCanvasSize()">
+            <span>×</span>
+            <input type="number" id="labelHeight" value="25" min="5" max="105" step="0.5" onchange="updateCanvasSize()">
+            <span>mm</span>
+        </div>
+    </div>
+
+    <!-- ===== Main Area ===== -->
+    <div class="main-area">
+        <!-- Left Sidebar -->
+        <div class="left-sidebar">
+            <button class="tool-btn active" data-tool="select" onclick="setTool('select')">
+                <i class="fas fa-mouse-pointer"></i><span>تحديد</span>
+            </button>
+            <button class="tool-btn" data-tool="text" onclick="setTool('text')">
+                <i class="fas fa-font"></i><span>نص</span>
+            </button>
+            <button class="tool-btn" data-tool="barcode" onclick="setTool('barcode')">
+                <i class="fas fa-barcode"></i><span>باركود</span>
+            </button>
+            <button class="tool-btn" data-tool="qrcode" onclick="setTool('qrcode')">
+                <i class="fas fa-qrcode"></i><span>QR</span>
+            </button>
+            <button class="tool-btn" data-tool="image" onclick="setTool('image')">
+                <i class="fas fa-image"></i><span>صورة</span>
+            </button>
+            <button class="tool-btn" data-tool="icon" onclick="setTool('icon')">
+                <i class="fas fa-icons"></i><span>أيقونة</span>
+            </button>
+            <button class="tool-btn" data-tool="line" onclick="setTool('line')">
+                <i class="fas fa-minus"></i><span>خط</span>
+            </button>
+            <button class="tool-btn" data-tool="rectangle" onclick="setTool('rectangle')">
+                <i class="far fa-square"></i><span>مستطيل</span>
+            </button>
+            <button class="tool-btn" data-tool="table" onclick="setTool('table')">
+                <i class="fas fa-table"></i><span>جدول</span>
+            </button>
+            <button class="tool-btn" data-tool="time" onclick="setTool('time')">
+                <i class="fas fa-clock"></i><span>وقت</span>
+            </button>
+            <button class="tool-btn" data-tool="excel" onclick="setTool('excel')">
+                <i class="fas fa-file-excel"></i><span>Excel</span>
+            </button>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <div class="ruler-top" id="rulerTop"></div>
+            <div class="ruler-left" id="rulerLeft"></div>
+            <div class="canvas-wrapper">
+                <div class="canvas" id="canvas" onclick="canvasClick(event)"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel" id="rightPanel">
+            <div class="panel-header">Attributes</div>
+            <div id="attributesContent">
+                <div style="padding:30px; text-align:center; color:#999; font-size:13px;">
+                    <i class="fas fa-mouse-pointer" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+                    اختر عنصراً لتحرير خصائصه
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Inputs -->
+<input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+<input type="file" id="excelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
+
+<script>
+/* =========================
+   Global Variables
+   ========================= */
+let selectedElement = null;
+let currentTool = 'select';
+let zoom = 1;
+let elementCounter = 0;
+let isDragging = false;
+let isResizing = false;
+let dragOffset = { x: 0, y: 0 };
+let resizeDir = '';
+let resizeStart = { x: 0, y: 0, left: 0, top: 0, width: 0, height: 0 };
+const PX_PER_MM = 3.78;
+
+const canvas = document.getElementById('canvas');
+const rulerTop = document.getElementById('rulerTop');
+const rulerLeft = document.getElementById('rulerLeft');
+
+/* =========================
+   Initialization
+   ========================= */
+function init() {
+    updateCanvasSize();
+    drawRulers();
+    setupKeyboard();
+    window.addEventListener('resize', drawRulers);
+}
+
+/* =========================
+   Canvas & Rulers
+   ========================= */
+function updateCanvasSize() {
+    const w = parseFloat(document.getElementById('labelWidth').value) || 50;
+    const h = parseFloat(document.getElementById('labelHeight').value) || 25;
+    canvas.style.width = (w * PX_PER_MM) + 'px';
+    canvas.style.height = (h * PX_PER_MM) + 'px';
+    drawRulers();
+    document.querySelectorAll('.design-element[data-type="text"]').forEach(el => {
+        autoFitText(el);
+    });
+}
+
+function drawRulers() {
+    const w = canvas.offsetWidth;
+    rulerTop.innerHTML = '';
+    for (let i = 0; i <= w; i += 10) {
+        const mark = document.createElement('div');
+        mark.style.cssText = `position:absolute; right:${i}px; bottom:0; width:1px; background:${i%50===0?'#333':'#666'}; height:${i%50===0?'12px':'6px'};`;
+        rulerTop.appendChild(mark);
+        if (i % 50 === 0) {
+            const lbl = document.createElement('span');
+            lbl.style.cssText = `position:absolute; right:${i+2}px; bottom:14px; font-size:9px; color:#333;`;
+            lbl.textContent = Math.round(i / PX_PER_MM);
+            rulerTop.appendChild(lbl);
+        }
+    }
+    const h = canvas.offsetHeight;
+    rulerLeft.innerHTML = '';
+    for (let i = 0; i <= h; i += 10) {
+        const mark = document.createElement('div');
+        mark.style.cssText = `position:absolute; top:${i}px; left:0; height:1px; background:${i%50===0?'#333':'#666'}; width:${i%50===0?'12px':'6px'};`;
+        rulerLeft.appendChild(mark);
+        if (i % 50 === 0) {
+            const lbl = document.createElement('span');
+            lbl.style.cssText = `position:absolute; top:${i+2}px; left:14px; font-size:9px; color:#333;`;
+            lbl.textContent = Math.round(i / PX_PER_MM);
+            rulerLeft.appendChild(lbl);
+        }
+    }
+}
+
+/* =========================
+   Tools
+   ========================= */
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+    canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+}
+
+function canvasClick(e) {
+    if (e.target.closest('.design-element')) return;
+    if (e.target !== canvas) return;
+    if (currentTool === 'select') { deselectAll(); return; }
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+
+    switch(currentTool) {
+        case 'text': addText(x, y); break;
+        case 'barcode': addBarcode(x, y); break;
+        case 'qrcode': addQRCode(x, y); break;
+        case 'image':
+            document.getElementById('imageInput').dataset.x = x;
+            document.getElementById('imageInput').dataset.y = y;
+            document.getElementById('imageInput').click();
+            break;
+        case 'icon': addIcon(x, y); break;
+        case 'line': addLine(x, y); break;
+        case 'rectangle': addRectangle(x, y); break;
+        case 'table': addTable(x, y); break;
+        case 'time': addTime(x, y); break;
+        case 'excel':
+            document.getElementById('excelInput').dataset.x = x;
+            document.getElementById('excelInput').dataset.y = y;
+            document.getElementById('excelInput').click();
+            break;
+    }
+    setTool('select');
+}
+
+/* =========================
+   Element Factory
+   ========================= */
+function createElement(x, y, w, h, type) {
+    const el = document.createElement('div');
+    el.className = 'design-element';
+    el.id = 'el-' + (++elementCounter);
+    el.style.cssText = `left:${x}px; top:${y}px; width:${w}px; height:${h}px; z-index:${elementCounter};`;
+    el.dataset.type = type;
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    el.appendChild(content);
+
+    // Resize handles — ALL elements including text
+    const handles = ['nw','n','ne','e','se','s','sw','w'];
+    handles.forEach(dir => {
+        const h = document.createElement('div');
+        h.className = 'resize-handle ' + dir;
+        h.addEventListener('mousedown', (e) => startResize(e, el, dir));
+        el.appendChild(h);
+    });
+
+    el.addEventListener('mousedown', (e) => startDrag(e, el));
+    canvas.appendChild(el);
+    selectElement(el);
+    return el;
+}
+
+/* ----- Auto-Fit Text Logic ----- */
+function calculateAutoFontSize(text, widthPx, heightPx, lineHeight) {
+    if (!text) return 12;
+    const lines = text.split('\n');
+    const maxLineLength = Math.max(...lines.map(l => l.length));
+    const numLines = lines.length;
+    const charWidthFactor = 0.62;
+    const fontSizeByWidth = (widthPx * 0.92) / (maxLineLength * charWidthFactor);
+    const fontSizeByHeight = (heightPx * 0.88) / (numLines * lineHeight);
+    let optimal = Math.min(fontSizeByWidth, fontSizeByHeight);
+    optimal = Math.max(6, Math.min(optimal, 120));
+    return Math.round(optimal);
+}
+
+function autoFitText(el) {
+    if (!el || el.dataset.type !== 'text') return;
+    const content = el.querySelector('.content');
+    const text = el.dataset.textContent || content.innerText || '';
+    const w = parseFloat(el.style.width) || 100;
+    const h = parseFloat(el.style.height) || 50;
+    const lineHeight = parseFloat(el.dataset.lineHeight) || 1.3;
+    let fontSize;
+
+    if (el.dataset.manualFontSize === 'true') {
+        fontSize = parseFloat(el.dataset.fontSize) || 16;
+    } else {
+        fontSize = calculateAutoFontSize(text, w, h, lineHeight);
+        el.dataset.fontSize = fontSize;
+    }
+
+    content.style.fontSize = fontSize + 'px';
+    content.style.lineHeight = lineHeight;
+    content.style.fontWeight = 'bold';
+    content.style.fontFamily = el.dataset.fontFamily || 'Tahoma';
+    const align = el.dataset.textAlign || 'center';
+    content.style.textAlign = align;
+    content.style.display = 'flex';
+    content.style.alignItems = 'center';
+    content.style.justifyContent = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
+    content.style.direction = 'rtl';
+    content.style.color = el.dataset.textColor || '#000';
+    content.style.padding = '3px';
+    content.style.wordBreak = 'break-word';
+    content.style.whiteSpace = 'pre-wrap';
+    content.style.overflow = 'hidden';
+
+    if (selectedElement === el) {
+        const fsDisplay = document.getElementById('attrFontSizeDisplay');
+        const autoBadge = document.getElementById('autoBadge');
+        if (fsDisplay) fsDisplay.textContent = fontSize + 'px';
+        if (autoBadge) autoBadge.textContent = el.dataset.manualFontSize === 'true' ? 'يدوي' : 'تلقائي';
+    }
+}
+
+function increaseFontSize() {
+    if (!selectedElement || selectedElement.dataset.type !== 'text') return;
+    let fs = parseFloat(selectedElement.dataset.fontSize) || 16;
+    fs = Math.min(fs + 1, 120);
+    selectedElement.dataset.fontSize = fs;
+    selectedElement.dataset.manualFontSize = 'true';
+    autoFitText(selectedElement);
+    showAttributes(selectedElement);
+}
+
+function decreaseFontSize() {
+    if (!selectedElement || selectedElement.dataset.type !== 'text') return;
+    let fs = parseFloat(selectedElement.dataset.fontSize) || 16;
+    fs = Math.max(fs - 1, 6);
+    selectedElement.dataset.fontSize = fs;
+    selectedElement.dataset.manualFontSize = 'true';
+    autoFitText(selectedElement);
+    showAttributes(selectedElement);
+}
+
+function resetAutoFontSize() {
+    if (!selectedElement || selectedElement.dataset.type !== 'text') return;
+    selectedElement.dataset.manualFontSize = 'false';
+    autoFitText(selectedElement);
+    showAttributes(selectedElement);
+}
+
+function setTextAlign(align) {
+    if (!selectedElement || selectedElement.dataset.type !== 'text') return;
+    selectedElement.dataset.textAlign = align;
+    autoFitText(selectedElement);
+    showAttributes(selectedElement);
+}
+
+/* ----- Text ----- */
+function addText(x, y) {
+    const w = 180, h = 60;
+    const el = createElement(x, y, w, h, 'text');
+    el.dataset.textContent = 'نص جديد';
+    el.dataset.fontFamily = 'Tahoma';
+    el.dataset.lineHeight = '1.3';
+    el.dataset.textColor = '#000000';
+    el.dataset.textAlign = 'center';
+    el.dataset.manualFontSize = 'false';
+
+    const c = el.querySelector('.content');
+    c.textContent = 'نص جديد';
+    c.style.cursor = 'move';
+
+    autoFitText(el);
+}
+
+/* ----- Barcode ----- */
+function addBarcode(x, y) {
+    const el = createElement(x, y, 160, 70, 'barcode');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.width = '100%'; svg.style.height = '100%';
+    el.querySelector('.content').appendChild(svg);
+    el.dataset.barcodeValue = '123456789012';
+    try { JsBarcode(svg, '123456789012', { format:'CODE128', width:2, height:40, displayValue:true, fontSize:14 }); }
+    catch(e) { console.error(e); }
+}
+
+/* ----- QR Code ----- */
+function addQRCode(x, y) {
+    const el = createElement(x, y, 100, 100, 'qrcode');
+    const cvs = document.createElement('canvas');
+    cvs.style.width = '100%'; cvs.style.height = '100%';
+    el.querySelector('.content').appendChild(cvs);
+    el.dataset.qrValue = 'https://example.com';
+    QRCode.toCanvas(cvs, 'https://example.com', { width:100, margin:1 }, (err) => { if(err) console.error(err); });
+}
+
+/* ----- Image ----- */
+function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const x = parseFloat(e.target.dataset.x) || 0;
+    const y = parseFloat(e.target.dataset.y) || 0;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const el = createElement(x, y, 150, 150, 'image');
+        const img = document.createElement('img');
+        img.src = ev.target.result;
+        img.style.cssText = 'width:100%; height:100%; object-fit:contain; display:block;';
+        el.querySelector('.content').appendChild(img);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+}
+
+/* ----- Icon ----- */
+function addIcon(x, y) {
+    const el = createElement(x, y, 44, 44, 'icon');
+    const i = document.createElement('i');
+    i.className = 'fas fa-star';
+    i.style.cssText = 'font-size:28px; color:#333; display:flex; align-items:center; justify-content:center; width:100%; height:100%;';
+    el.querySelector('.content').appendChild(i);
+    el.dataset.icon = 'fa-star';
+}
+
+/* ----- Line ----- */
+function addLine(x, y) {
+    const el = createElement(x, y, 120, 2, 'line');
+    const div = document.createElement('div');
+    div.style.cssText = 'width:100%; height:100%; background:#000;';
+    el.querySelector('.content').appendChild(div);
+}
+
+/* ----- Rectangle ----- */
+function addRectangle(x, y) {
+    const el = createElement(x, y, 120, 80, 'rectangle');
+    const div = document.createElement('div');
+    div.style.cssText = 'width:100%; height:100%; border:1px solid #000; background:transparent;';
+    el.querySelector('.content').appendChild(div);
+}
+
+/* ----- Table ----- */
+function addTable(x, y) {
+    const el = createElement(x, y, 220, 90, 'table');
+    const tbl = document.createElement('table');
+    tbl.style.cssText = 'width:100%; height:100%; border-collapse:collapse; font-size:13px;';
+    tbl.innerHTML = `
+        <tr><td style="border:1px solid #333; padding:5px; text-align:center;">عمود 1</td><td style="border:1px solid #333; padding:5px; text-align:center;">عمود 2</td></tr>
+        <tr><td style="border:1px solid #333; padding:5px; text-align:center;">بيان 1</td><td style="border:1px solid #333; padding:5px; text-align:center;">بيان 2</td></tr>
+    `;
+    el.querySelector('.content').appendChild(tbl);
+}
+
+/* ----- Time ----- */
+function addTime(x, y) {
+    const el = createElement(x, y, 110, 34, 'time');
+    const span = document.createElement('span');
+    span.style.cssText = 'font-size:14px; font-family:Arial; display:flex; align-items:center; justify-content:center; width:100%; height:100%; direction:ltr;';
+    span.textContent = new Date().toLocaleTimeString('ar-EG');
+    el.querySelector('.content').appendChild(span);
+    setInterval(() => { span.textContent = new Date().toLocaleTimeString('ar-EG'); }, 1000);
+}
+
+/* ----- Excel ----- */
+function handleExcelUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const x = parseFloat(e.target.dataset.x) || 0;
+    const y = parseFloat(e.target.dataset.y) || 0;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const el = createElement(x, y, 320, 160, 'table');
+        const tbl = document.createElement('table');
+        tbl.style.cssText = 'width:100%; border-collapse:collapse; font-size:11px;';
+        json.slice(0, 12).forEach(row => {
+            const tr = document.createElement('tr');
+            (row || []).slice(0, 6).forEach(cell => {
+                const td = document.createElement('td');
+                td.style.cssText = 'border:1px solid #333; padding:3px 6px; text-align:center;';
+                td.textContent = cell || '';
+                tr.appendChild(td);
+            });
+            tbl.appendChild(tr);
+        });
+        el.querySelector('.content').appendChild(tbl);
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+}
+
+/* =========================
+   Selection
+   ========================= */
+function selectElement(el) {
+    deselectAll();
+    selectedElement = el;
+    el.classList.add('selected');
+    showAttributes(el);
+}
+
+function deselectAll() {
+    if (selectedElement) {
+        selectedElement.classList.remove('selected');
+        selectedElement = null;
+    }
+    document.getElementById('attributesContent').innerHTML = `
+        <div style="padding:30px; text-align:center; color:#999; font-size:13px;">
+            <i class="fas fa-mouse-pointer" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+            اختر عنصراً لتحرير خصائصه
+        </div>
+    `;
+}
+
+/* =========================
+   Drag
+   ========================= */
+function startDrag(e, el) {
+    if (e.target.classList.contains('resize-handle')) return;
+    if (currentTool !== 'select') return;
+
+    e.stopPropagation();
+    selectElement(el);
+    isDragging = true;
+    const rect = el.getBoundingClientRect();
+    dragOffset.x = (e.clientX - rect.left) / zoom;
+    dragOffset.y = (e.clientY - rect.top) / zoom;
+
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+}
+function onDrag(e) {
+    if (!isDragging || !selectedElement) return;
+    const cRect = canvas.getBoundingClientRect();
+    let x = (e.clientX - cRect.left) / zoom - dragOffset.x;
+    let y = (e.clientY - cRect.top) / zoom - dragOffset.y;
+    x = Math.max(0, x); y = Math.max(0, y);
+    selectedElement.style.left = x + 'px';
+    selectedElement.style.top = y + 'px';
+    updateAttributes();
+}
+function stopDrag() {
+    isDragging = false;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+}
+
+/* =========================
+   Resize
+   ========================= */
+function startResize(e, el, dir) {
+    e.stopPropagation();
+    isResizing = true;
+    resizeDir = dir;
+    resizeStart.x = e.clientX;
+    resizeStart.y = e.clientY;
+    resizeStart.left = parseFloat(el.style.left) || 0;
+    resizeStart.top = parseFloat(el.style.top) || 0;
+    resizeStart.width = parseFloat(el.style.width) || 0;
+    resizeStart.height = parseFloat(el.style.height) || 0;
+
+    document.addEventListener('mousemove', onResize);
+    document.addEventListener('mouseup', stopResize);
+}
+function onResize(e) {
+    if (!isResizing || !selectedElement) return;
+    const dx = (e.clientX - resizeStart.x) / zoom;
+    const dy = (e.clientY - resizeStart.y) / zoom;
+    let nw = resizeStart.width, nh = resizeStart.height, nx = resizeStart.left, ny = resizeStart.top;
+
+    if (resizeDir.includes('e')) nw = Math.max(10, resizeStart.width + dx);
+    if (resizeDir.includes('s')) nh = Math.max(10, resizeStart.height + dy);
+    if (resizeDir.includes('w')) { nw = Math.max(10, resizeStart.width - dx); nx = resizeStart.left + (resizeStart.width - nw); }
+    if (resizeDir.includes('n')) { nh = Math.max(10, resizeStart.height - dy); ny = resizeStart.top + (resizeStart.height - nh); }
+
+    selectedElement.style.width = nw + 'px';
+    selectedElement.style.height = nh + 'px';
+    selectedElement.style.left = nx + 'px';
+    selectedElement.style.top = ny + 'px';
+
+    // Auto-fit text on resize
+    if (selectedElement.dataset.type === 'text') {
+        autoFitText(selectedElement);
+    }
+
+    updateAttributes();
+}
+function stopResize() {
+    isResizing = false;
+    document.removeEventListener('mousemove', onResize);
+    document.removeEventListener('mouseup', stopResize);
+}
+
+/* =========================
+   Attributes Panel
+   ========================= */
+function showAttributes(el) {
+    const type = el.dataset.type;
+    const content = el.querySelector('.content');
+    const left = parseFloat(el.style.left) || 0;
+    const top = parseFloat(el.style.top) || 0;
+    const width = parseFloat(el.style.width) || 0;
+    const height = parseFloat(el.style.height) || 0;
+
+    let html = `
+        <div class="panel-section">
+            <div class="panel-section-title">Position and size</div>
+            <div class="form-row">
+                <div class="form-group"><label>X (px)</label><input type="number" id="attrX" value="${left.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                <div class="form-group"><label>Y (px)</label><input type="number" id="attrY" value="${top.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Width (px)</label><input type="number" id="attrW" value="${width.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                <div class="form-group"><label>Height (px)</label><input type="number" id="attrH" value="${height.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+            </div>
+        </div>
+    `;
+
+    if (type === 'text') {
+        const text = el.dataset.textContent || content.innerText || '';
+        const ff = el.dataset.fontFamily || 'Tahoma';
+        const fs = parseFloat(el.dataset.fontSize) || 16;
+        const isManual = el.dataset.manualFontSize === 'true';
+        const col = el.dataset.textColor || '#000000';
+        const align = el.dataset.textAlign || 'center';
+        html += `
+            <div class="panel-info">
+                <i class="fas fa-info-circle"></i> اسحب المربع البرتقالي لتغيير حجم النص. الخط يتكيف تلقائياً مع الحجم الجديد.
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">Content</div>
+                <div class="form-group full"><textarea class="textarea-content" id="attrContent" oninput="updateElementFromAttr()">${text}</textarea></div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">Font Size <span class="auto-badge" id="autoBadge">${isManual ? 'يدوي' : 'تلقائي'}</span></div>
+                <div class="font-size-controls">
+                    <button class="font-size-btn" onclick="decreaseFontSize()" title="تصغير الخط"><i class="fas fa-font" style="font-size:10px;"></i></button>
+                    <span class="font-size-display" id="attrFontSizeDisplay">${fs}px</span>
+                    <button class="font-size-btn" onclick="increaseFontSize()" title="تكبير الخط"><i class="fas fa-font" style="font-size:18px;"></i></button>
+                    <button class="font-size-btn reset" onclick="resetAutoFontSize()" title="إعادة التلقائي"><i class="fas fa-sync-alt"></i> تلقائي</button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">Text Align</div>
+                <div class="align-controls">
+                    <button class="align-btn ${align==='right'?'active':''}" onclick="setTextAlign('right')" title="يمين"><i class="fas fa-align-right"></i></button>
+                    <button class="align-btn ${align==='center'?'active':''}" onclick="setTextAlign('center')" title="وسط"><i class="fas fa-align-center"></i></button>
+                    <button class="align-btn ${align==='left'?'active':''}" onclick="setTextAlign('left')" title="يسار"><i class="fas fa-align-left"></i></button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-section-title">Font Style</div>
+                <div class="form-group"><label>Font Family</label>
+                    <select id="attrFont" onchange="updateElementFromAttr()">
+                        <option value="Tahoma" ${ff==='Tahoma'?'selected':''}>Tahoma</option>
+                        <option value="Arial" ${ff==='Arial'?'selected':''}>Arial</option>
+                        <option value="Segoe UI" ${ff==='Segoe UI'?'selected':''}>Segoe UI</option>
+                        <option value="'Courier New'" ${ff==="Courier New"?'selected':''}>Courier New</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Color</label><input type="color" id="attrColor" value="${col}" onchange="updateElementFromAttr()"></div>
+                <div class="form-group"><label>Line Height</label><input type="number" id="attrLineHeight" value="${el.dataset.lineHeight||1.3}" min="0.8" max="3" step="0.1" onchange="updateElementFromAttr()"></div>
+            </div>
+        `;
+    } else if (type === 'barcode') {
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">Barcode Data</div>
+                <div class="form-group full"><input type="text" id="attrBarcode" value="${el.dataset.barcodeValue||'123456789012'}" onchange="updateBarcode()"></div>
+            </div>
+        `;
+    } else if (type === 'qrcode') {
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">QR Data</div>
+                <div class="form-group full"><input type="text" id="attrQR" value="${el.dataset.qrValue||'https://example.com'}" onchange="updateQRCode()"></div>
+            </div>
+        `;
+    } else if (type === 'icon') {
+        const ic = el.dataset.icon || 'fa-star';
+        const col = content.querySelector('i').style.color || '#333';
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">Icon</div>
+                <div class="form-group"><label>Icon Class (fa-xxx)</label><input type="text" id="attrIcon" value="${ic}" onchange="updateIcon()"></div>
+                <div class="form-group"><label>Color</label><input type="color" id="attrIconColor" value="${col}" onchange="updateIcon()"></div>
+            </div>
+        `;
+    } else if (type === 'line') {
+        const div = content.querySelector('div');
+        const col = div.style.background || '#000';
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">Style</div>
+                <div class="form-group"><label>Color</label><input type="color" id="attrLineColor" value="${col}" onchange="updateLine()"></div>
+                <div class="form-group"><label>Thickness (px)</label><input type="number" id="attrLineThick" value="${parseInt(div.style.height)||2}" min="1" max="30" onchange="updateLine()"></div>
+            </div>
+        `;
+    } else if (type === 'rectangle') {
+        const div = content.querySelector('div');
+        const bc = div.style.borderColor || '#000';
+        const bg = div.style.backgroundColor || 'transparent';
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">Style</div>
+                <div class="form-group"><label>Border Color</label><input type="color" id="attrRectBorder" value="${bc}" onchange="updateRectangle()"></div>
+                <div class="form-group"><label>Background</label><input type="color" id="attrRectBg" value="${bg==='transparent'?'#ffffff':bg}" onchange="updateRectangle()"></div>
+                <div class="form-group"><label>Border Width (px)</label><input type="number" id="attrRectBorderW" value="${parseInt(div.style.borderWidth)||1}" min="0" max="20" onchange="updateRectangle()"></div>
+            </div>
+        `;
+    }
+
+    document.getElementById('attributesContent').innerHTML = html;
+}
+
+function updateAttributes() { if (selectedElement) showAttributes(selectedElement); }
+
+function updateElementFromAttr() {
+    if (!selectedElement) return;
+    const x = parseFloat(document.getElementById('attrX').value) || 0;
+    const y = parseFloat(document.getElementById('attrY').value) || 0;
+    const w = parseFloat(document.getElementById('attrW').value) || 10;
+    const h = parseFloat(document.getElementById('attrH').value) || 10;
+    selectedElement.style.left = x + 'px';
+    selectedElement.style.top = y + 'px';
+    selectedElement.style.width = w + 'px';
+    selectedElement.style.height = h + 'px';
+
+    const type = selectedElement.dataset.type;
+    const content = selectedElement.querySelector('.content');
+    if (type === 'text') {
+        const newText = document.getElementById('attrContent').value;
+        selectedElement.dataset.textContent = newText;
+        content.innerText = newText;
+        selectedElement.dataset.fontFamily = document.getElementById('attrFont').value;
+        selectedElement.dataset.textColor = document.getElementById('attrColor').value;
+        selectedElement.dataset.lineHeight = document.getElementById('attrLineHeight').value;
+        autoFitText(selectedElement);
+    }
+}
+
+function updateBarcode() {
+    if (!selectedElement || selectedElement.dataset.type !== 'barcode') return;
+    const v = document.getElementById('attrBarcode').value || '123456789012';
+    selectedElement.dataset.barcodeValue = v;
+    const svg = selectedElement.querySelector('svg');
+    svg.innerHTML = '';
+    try { JsBarcode(svg, v, { format:'CODE128', width:2, height:40, displayValue:true, fontSize:14 }); }
+    catch(e) { console.error(e); }
+}
+function updateQRCode() {
+    if (!selectedElement || selectedElement.dataset.type !== 'qrcode') return;
+    const v = document.getElementById('attrQR').value || 'https://example.com';
+    selectedElement.dataset.qrValue = v;
+    const c = selectedElement.querySelector('canvas');
+    QRCode.toCanvas(c, v, { width:parseInt(selectedElement.style.width), margin:1 }, (err) => { if(err) console.error(err); });
+}
+function updateIcon() {
+    if (!selectedElement || selectedElement.dataset.type !== 'icon') return;
+    const cls = document.getElementById('attrIcon').value || 'fa-star';
+    const col = document.getElementById('attrIconColor').value || '#333';
+    selectedElement.dataset.icon = cls;
+    const i = selectedElement.querySelector('i');
+    i.className = 'fas ' + cls;
+    i.style.color = col;
+}
+function updateLine() {
+    if (!selectedElement || selectedElement.dataset.type !== 'line') return;
+    const col = document.getElementById('attrLineColor').value || '#000';
+    const th = document.getElementById('attrLineThick').value || 2;
+    const div = selectedElement.querySelector('.content div');
+    div.style.background = col;
+    div.style.height = th + 'px';
+}
+function updateRectangle() {
+    if (!selectedElement || selectedElement.dataset.type !== 'rectangle') return;
+    const bc = document.getElementById('attrRectBorder').value || '#000';
+    const bg = document.getElementById('attrRectBg').value || '#fff';
+    const bw = document.getElementById('attrRectBorderW').value || 1;
+    const div = selectedElement.querySelector('.content div');
+    div.style.border = bw + 'px solid ' + bc;
+    div.style.backgroundColor = bg;
+}
+
+/* =========================
+   Toolbar Actions
+   ========================= */
+function zoomIn() { zoom = Math.min(zoom + 0.1, 3); applyZoom(); }
+function zoomOut() { zoom = Math.max(zoom - 0.1, 0.3); applyZoom(); }
+function applyZoom() {
+    canvas.style.transform = `scale(${zoom})`;
+    document.getElementById('zoomDisplay').textContent = Math.round(zoom*100) + '%';
+}
+function deleteSelected() {
+    if (!selectedElement) return;
+    selectedElement.remove(); deselectAll();
+}
+function duplicateSelected() {
+    if (!selectedElement) return;
+    const clone = selectedElement.cloneNode(true);
+    elementCounter++;
+    clone.id = 'el-' + elementCounter;
+    clone.style.left = (parseFloat(selectedElement.style.left)+20) + 'px';
+    clone.style.top = (parseFloat(selectedElement.style.top)+20) + 'px';
+    clone.style.zIndex = elementCounter;
+    clone.addEventListener('mousedown', (e) => startDrag(e, clone));
+    clone.querySelectorAll('.resize-handle').forEach(h => {
+        h.addEventListener('mousedown', (e) => startResize(e, clone, h.classList[1]));
+    });
+    canvas.appendChild(clone);
+    selectElement(clone);
+}
+function bringToFront() {
+    if (!selectedElement) return;
+    let maxZ = 0;
+    document.querySelectorAll('.design-element').forEach(e => maxZ = Math.max(maxZ, parseInt(e.style.zIndex)||0));
+    selectedElement.style.zIndex = maxZ + 1;
+}
+function sendToBack() {
+    if (!selectedElement) return;
+    let minZ = 9999;
+    document.querySelectorAll('.design-element').forEach(e => minZ = Math.min(minZ, parseInt(e.style.zIndex)||0));
+    selectedElement.style.zIndex = Math.max(1, minZ - 1);
+}
+function printDesign() {
+    const style = document.createElement('style');
+    style.id = 'printStyle';
+    const w = document.getElementById('labelWidth').value;
+    const h = document.getElementById('labelHeight').value;
+    style.textContent = `
+        @page { size: ${w}mm ${h}mm; margin: 0; }
+        @media print {
+            .canvas-wrapper { position:fixed; top:0; right:0; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; padding:0; background:#fff; }
+            .canvas { transform:none !important; box-shadow:none; margin:0 !important; }
+        }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => { const s=document.getElementById('printStyle'); if(s) s.remove(); }, 1000);
+}
+function saveDesign() {
+    const design = {
+        width: document.getElementById('labelWidth').value,
+        height: document.getElementById('labelHeight').value,
+        elements: []
+    };
+    document.querySelectorAll('.design-element').forEach(el => {
+        design.elements.push({
+            type: el.dataset.type,
+            left: el.style.left, top: el.style.top,
+            width: el.style.width, height: el.style.height,
+            zIndex: el.style.zIndex,
+            html: el.querySelector('.content').innerHTML,
+            dataset: { ...el.dataset }
+        });
+    });
+    const blob = new Blob([JSON.stringify(design, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'label-design.json'; a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* =========================
+   Keyboard Shortcuts
+   ========================= */
+function setupKeyboard() {
+    document.addEventListener('keydown', (e) => {
+        if ((e.key==='Delete' || e.key==='Backspace') &&
+            document.activeElement.tagName!=='INPUT' &&
+            document.activeElement.tagName!=='TEXTAREA') {
+            deleteSelected();
+        }
+        if (e.ctrlKey && e.key==='d') { e.preventDefault(); duplicateSelected(); }
+    });
+}
+
+/* =========================
+   Run
+   ========================= */
+init();
+</script>
+</body>
+</html>
