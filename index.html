@@ -422,45 +422,54 @@ function drawRulers() {
 }
 
 /* =========================
-   Tools
+   Tools — Auto-add on click
    ========================= */
 function setTool(tool) {
     currentTool = tool;
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
     canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+
+    // Auto-add elements when tool clicked (no canvas click needed)
+    if (tool === 'text') {
+        addTextAuto();
+        setTool('select');
+    } else if (tool === 'barcode') {
+        addBarcodeAuto();
+        setTool('select');
+    } else if (tool === 'qrcode') {
+        addQRCodeAuto();
+        setTool('select');
+    } else if (tool === 'image') {
+        // Image still needs file picker, so we trigger it
+        document.getElementById('imageInput').dataset.auto = 'true';
+        document.getElementById('imageInput').click();
+    } else if (tool === 'icon') {
+        addIconAuto();
+        setTool('select');
+    } else if (tool === 'line') {
+        addLineAuto();
+        setTool('select');
+    } else if (tool === 'rectangle') {
+        addRectangleAuto();
+        setTool('select');
+    } else if (tool === 'table') {
+        addTableAuto();
+        setTool('select');
+    } else if (tool === 'time') {
+        addTimeAuto();
+        setTool('select');
+    } else if (tool === 'excel') {
+        document.getElementById('excelInput').dataset.auto = 'true';
+        document.getElementById('excelInput').click();
+    }
 }
 
 function canvasClick(e) {
     if (e.target.closest('.design-element')) return;
     if (e.target !== canvas) return;
     if (currentTool === 'select') { deselectAll(); return; }
-
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-
-    switch(currentTool) {
-        case 'text': addText(x, y); break;
-        case 'barcode': addBarcode(x, y); break;
-        case 'qrcode': addQRCode(x, y); break;
-        case 'image':
-            document.getElementById('imageInput').dataset.x = x;
-            document.getElementById('imageInput').dataset.y = y;
-            document.getElementById('imageInput').click();
-            break;
-        case 'icon': addIcon(x, y); break;
-        case 'line': addLine(x, y); break;
-        case 'rectangle': addRectangle(x, y); break;
-        case 'table': addTable(x, y); break;
-        case 'time': addTime(x, y); break;
-        case 'excel':
-            document.getElementById('excelInput').dataset.x = x;
-            document.getElementById('excelInput').dataset.y = y;
-            document.getElementById('excelInput').click();
-            break;
-    }
-    setTool('select');
+    // Manual click on canvas for non-auto tools (if any)
 }
 
 /* =========================
@@ -490,6 +499,16 @@ function createElement(x, y, w, h, type) {
     canvas.appendChild(el);
     selectElement(el);
     return el;
+}
+
+/* ----- Auto center position ----- */
+function getCenterPosition(w, h) {
+    const cw = parseFloat(canvas.style.width) || 189;
+    const ch = parseFloat(canvas.style.height) || 94.5;
+    return {
+        x: Math.max(0, (cw - w) / 2),
+        y: Math.max(0, (ch - h) / 2)
+    };
 }
 
 /* ----- Auto-Fit Text Logic ----- */
@@ -580,10 +599,12 @@ function setTextAlign(align) {
     showAttributes(selectedElement);
 }
 
-/* ----- Text ----- */
-function addText(x, y) {
-    const w = 180, h = 60;
-    const el = createElement(x, y, w, h, 'text');
+/* ----- Text — Auto center ----- */
+function addTextAuto() {
+    const w = Math.min(180, parseFloat(canvas.style.width) * 0.8);
+    const h = Math.min(60, parseFloat(canvas.style.height) * 0.6);
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'text');
     el.dataset.textContent = 'نص جديد';
     el.dataset.fontFamily = 'Tahoma';
     el.dataset.lineHeight = '1.3';
@@ -598,9 +619,11 @@ function addText(x, y) {
     autoFitText(el);
 }
 
-/* ----- Barcode ----- */
-function addBarcode(x, y) {
-    const el = createElement(x, y, 160, 70, 'barcode');
+/* ----- Barcode — Auto center ----- */
+function addBarcodeAuto() {
+    const w = 160, h = 70;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'barcode');
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.style.width = '100%'; svg.style.height = '100%';
     el.querySelector('.content').appendChild(svg);
@@ -609,9 +632,11 @@ function addBarcode(x, y) {
     catch(e) { console.error(e); }
 }
 
-/* ----- QR Code ----- */
-function addQRCode(x, y) {
-    const el = createElement(x, y, 100, 100, 'qrcode');
+/* ----- QR Code — Auto center ----- */
+function addQRCodeAuto() {
+    const w = 100, h = 100;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'qrcode');
     const cvs = document.createElement('canvas');
     cvs.style.width = '100%'; cvs.style.height = '100%';
     el.querySelector('.content').appendChild(cvs);
@@ -619,15 +644,15 @@ function addQRCode(x, y) {
     QRCode.toCanvas(cvs, 'https://example.com', { width:100, margin:1 }, (err) => { if(err) console.error(err); });
 }
 
-/* ----- Image ----- */
+/* ----- Image — Auto center ----- */
 function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const x = parseFloat(e.target.dataset.x) || 0;
-    const y = parseFloat(e.target.dataset.y) || 0;
+    const w = 150, h = 150;
+    const pos = getCenterPosition(w, h);
     const reader = new FileReader();
     reader.onload = (ev) => {
-        const el = createElement(x, y, 150, 150, 'image');
+        const el = createElement(pos.x, pos.y, w, h, 'image');
         const img = document.createElement('img');
         img.src = ev.target.result;
         img.style.cssText = 'width:100%; height:100%; object-fit:contain; display:block;';
@@ -637,9 +662,11 @@ function handleImageUpload(e) {
     e.target.value = '';
 }
 
-/* ----- Icon ----- */
-function addIcon(x, y) {
-    const el = createElement(x, y, 44, 44, 'icon');
+/* ----- Icon — Auto center ----- */
+function addIconAuto() {
+    const w = 44, h = 44;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'icon');
     const i = document.createElement('i');
     i.className = 'fas fa-star';
     i.style.cssText = 'font-size:28px; color:#333; display:flex; align-items:center; justify-content:center; width:100%; height:100%;';
@@ -647,25 +674,31 @@ function addIcon(x, y) {
     el.dataset.icon = 'fa-star';
 }
 
-/* ----- Line ----- */
-function addLine(x, y) {
-    const el = createElement(x, y, 120, 2, 'line');
+/* ----- Line — Auto center ----- */
+function addLineAuto() {
+    const w = 120, h = 2;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'line');
     const div = document.createElement('div');
     div.style.cssText = 'width:100%; height:100%; background:#000;';
     el.querySelector('.content').appendChild(div);
 }
 
-/* ----- Rectangle ----- */
-function addRectangle(x, y) {
-    const el = createElement(x, y, 120, 80, 'rectangle');
+/* ----- Rectangle — Auto center ----- */
+function addRectangleAuto() {
+    const w = 120, h = 80;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'rectangle');
     const div = document.createElement('div');
     div.style.cssText = 'width:100%; height:100%; border:1px solid #000; background:transparent;';
     el.querySelector('.content').appendChild(div);
 }
 
-/* ----- Table ----- */
-function addTable(x, y) {
-    const el = createElement(x, y, 220, 90, 'table');
+/* ----- Table — Auto center ----- */
+function addTableAuto() {
+    const w = 220, h = 90;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'table');
     const tbl = document.createElement('table');
     tbl.style.cssText = 'width:100%; height:100%; border-collapse:collapse; font-size:13px;';
     tbl.innerHTML = `
@@ -675,9 +708,11 @@ function addTable(x, y) {
     el.querySelector('.content').appendChild(tbl);
 }
 
-/* ----- Time ----- */
-function addTime(x, y) {
-    const el = createElement(x, y, 110, 34, 'time');
+/* ----- Time — Auto center ----- */
+function addTimeAuto() {
+    const w = 110, h = 34;
+    const pos = getCenterPosition(w, h);
+    const el = createElement(pos.x, pos.y, w, h, 'time');
     const span = document.createElement('span');
     span.style.cssText = 'font-size:14px; font-family:Arial; display:flex; align-items:center; justify-content:center; width:100%; height:100%; direction:ltr;';
     span.textContent = new Date().toLocaleTimeString('ar-EG');
@@ -685,19 +720,19 @@ function addTime(x, y) {
     setInterval(() => { span.textContent = new Date().toLocaleTimeString('ar-EG'); }, 1000);
 }
 
-/* ----- Excel ----- */
+/* ----- Excel — Auto center ----- */
 function handleExcelUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const x = parseFloat(e.target.dataset.x) || 0;
-    const y = parseFloat(e.target.dataset.y) || 0;
+    const w = 320, h = 160;
+    const pos = getCenterPosition(w, h);
     const reader = new FileReader();
     reader.onload = (ev) => {
         const data = new Uint8Array(ev.target.result);
         const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        const el = createElement(x, y, 320, 160, 'table');
+        const el = createElement(pos.x, pos.y, w, h, 'table');
         const tbl = document.createElement('table');
         tbl.style.cssText = 'width:100%; border-collapse:collapse; font-size:11px;';
         json.slice(0, 12).forEach(row => {
@@ -805,7 +840,6 @@ function onResize(e) {
     selectedElement.style.left = nx + 'px';
     selectedElement.style.top = ny + 'px';
 
-    // Auto-fit text on resize
     if (selectedElement.dataset.type === 'text') {
         autoFitText(selectedElement);
     }
@@ -819,29 +853,34 @@ function stopResize() {
 }
 
 /* =========================
-   Attributes Panel
+   Attributes Panel — NO Position and size for text
    ========================= */
 function showAttributes(el) {
     const type = el.dataset.type;
     const content = el.querySelector('.content');
-    const left = parseFloat(el.style.left) || 0;
-    const top = parseFloat(el.style.top) || 0;
-    const width = parseFloat(el.style.width) || 0;
-    const height = parseFloat(el.style.height) || 0;
 
-    let html = `
-        <div class="panel-section">
-            <div class="panel-section-title">Position and size</div>
-            <div class="form-row">
-                <div class="form-group"><label>X (px)</label><input type="number" id="attrX" value="${left.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
-                <div class="form-group"><label>Y (px)</label><input type="number" id="attrY" value="${top.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+    let html = '';
+
+    // Show Position and size ONLY for non-text elements
+    if (type !== 'text') {
+        const left = parseFloat(el.style.left) || 0;
+        const top = parseFloat(el.style.top) || 0;
+        const width = parseFloat(el.style.width) || 0;
+        const height = parseFloat(el.style.height) || 0;
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-title">Position and size</div>
+                <div class="form-row">
+                    <div class="form-group"><label>X (px)</label><input type="number" id="attrX" value="${left.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                    <div class="form-group"><label>Y (px)</label><input type="number" id="attrY" value="${top.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Width (px)</label><input type="number" id="attrW" value="${width.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                    <div class="form-group"><label>Height (px)</label><input type="number" id="attrH" value="${height.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
+                </div>
             </div>
-            <div class="form-row">
-                <div class="form-group"><label>Width (px)</label><input type="number" id="attrW" value="${width.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
-                <div class="form-group"><label>Height (px)</label><input type="number" id="attrH" value="${height.toFixed(1)}" step="0.5" onchange="updateElementFromAttr()"></div>
-            </div>
-        </div>
-    `;
+        `;
+    }
 
     if (type === 'text') {
         const text = el.dataset.textContent || content.innerText || '';
@@ -851,9 +890,6 @@ function showAttributes(el) {
         const col = el.dataset.textColor || '#000000';
         const align = el.dataset.textAlign || 'center';
         html += `
-            <div class="panel-info">
-                <i class="fas fa-info-circle"></i> اسحب المربع البرتقالي لتغيير حجم النص. الخط يتكيف تلقائياً مع الحجم الجديد.
-            </div>
             <div class="panel-section">
                 <div class="panel-section-title">Content</div>
                 <div class="form-group full"><textarea class="textarea-content" id="attrContent" oninput="updateElementFromAttr()">${text}</textarea></div>
@@ -944,14 +980,18 @@ function updateAttributes() { if (selectedElement) showAttributes(selectedElemen
 
 function updateElementFromAttr() {
     if (!selectedElement) return;
-    const x = parseFloat(document.getElementById('attrX').value) || 0;
-    const y = parseFloat(document.getElementById('attrY').value) || 0;
-    const w = parseFloat(document.getElementById('attrW').value) || 10;
-    const h = parseFloat(document.getElementById('attrH').value) || 10;
-    selectedElement.style.left = x + 'px';
-    selectedElement.style.top = y + 'px';
-    selectedElement.style.width = w + 'px';
-    selectedElement.style.height = h + 'px';
+
+    // Only update position/size for non-text elements
+    if (selectedElement.dataset.type !== 'text') {
+        const x = parseFloat(document.getElementById('attrX').value) || 0;
+        const y = parseFloat(document.getElementById('attrY').value) || 0;
+        const w = parseFloat(document.getElementById('attrW').value) || 10;
+        const h = parseFloat(document.getElementById('attrH').value) || 10;
+        selectedElement.style.left = x + 'px';
+        selectedElement.style.top = y + 'px';
+        selectedElement.style.width = w + 'px';
+        selectedElement.style.height = h + 'px';
+    }
 
     const type = selectedElement.dataset.type;
     const content = selectedElement.querySelector('.content');
