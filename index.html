@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Label Designer Pro — Auto-Fit</title>
+<title>Label Designer Pro — Menu</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
@@ -62,8 +62,9 @@
         display: flex; flex-direction: column;
         align-items: center; padding: 8px 0;
         gap: 4px; flex-shrink: 0; z-index: 50;
+        position: relative;
     }
-    .tool-btn {
+    .sidebar-btn {
         width: 52px; height: 52px;
         border: none; background: transparent;
         border-radius: 6px; cursor: pointer;
@@ -72,8 +73,79 @@
         gap: 2px; color: #555; font-size: 11px;
         transition: all 0.2s;
     }
-    .tool-btn i { font-size: 18px; }
-    .tool-btn:hover, .tool-btn.active { background: #e3f2fd; color: #1976d2; }
+    .sidebar-btn i { font-size: 18px; }
+    .sidebar-btn:hover, .sidebar-btn.active {
+        background: #e3f2fd; color: #1976d2;
+    }
+    .menu-btn {
+        width: 52px; height: 52px;
+        border: none; background: #1976d2;
+        border-radius: 6px; cursor: pointer;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 2px; color: #fff; font-size: 11px;
+        transition: all 0.2s;
+        margin-top: 4px;
+    }
+    .menu-btn i { font-size: 20px; }
+    .menu-btn:hover { background: #1565c0; }
+
+    /* Dropdown Menu */
+    .tools-dropdown {
+        position: absolute;
+        top: 120px;
+        right: 8px;
+        width: 200px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        display: none;
+        flex-direction: column;
+        padding: 6px;
+        z-index: 200;
+        border: 1px solid #e0e0e0;
+    }
+    .tools-dropdown.show { display: flex; }
+    .tools-dropdown::before {
+        content: '';
+        position: absolute;
+        top: -6px;
+        right: 20px;
+        width: 12px; height: 12px;
+        background: #fff;
+        transform: rotate(45deg);
+        border-top: 1px solid #e0e0e0;
+        border-right: 1px solid #e0e0e0;
+    }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #333;
+        transition: all 0.15s;
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: right;
+    }
+    .dropdown-item:hover {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    .dropdown-item i {
+        width: 20px;
+        text-align: center;
+        font-size: 16px;
+    }
+    .dropdown-divider {
+        height: 1px;
+        background: #eee;
+        margin: 4px 0;
+    }
 
     /* ===== Canvas Area ===== */
     .canvas-area {
@@ -224,18 +296,6 @@
 
     .format-btns { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
 
-    /* Info bar in panel */
-    .panel-info {
-        background: #fff8e1;
-        border-right: 3px solid #ffc107;
-        padding: 10px 12px;
-        margin: 0 14px 14px;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #856404;
-        line-height: 1.6;
-    }
-
     /* ===== Print ===== */
     @media print {
         body * { visibility: hidden; }
@@ -286,41 +346,57 @@
 
     <!-- ===== Main Area ===== -->
     <div class="main-area">
-        <!-- Left Sidebar -->
+        <!-- Left Sidebar — Only Select + Text visible, rest in menu -->
         <div class="left-sidebar">
-            <button class="tool-btn active" data-tool="select" onclick="setTool('select')">
-                <i class="fas fa-mouse-pointer"></i><span>تحديد</span>
+            <!-- Visible buttons -->
+            <button class="sidebar-btn active" id="btnSelect" onclick="setSelectMode()" title="تحديد">
+                <i class="fas fa-mouse-pointer"></i>
+                <span>تحديد</span>
             </button>
-            <button class="tool-btn" data-tool="text" onclick="setTool('text')">
-                <i class="fas fa-font"></i><span>نص</span>
+            <button class="sidebar-btn" id="btnText" onclick="addTextAuto()" title="نص">
+                <i class="fas fa-font"></i>
+                <span>نص</span>
             </button>
-            <button class="tool-btn" data-tool="barcode" onclick="setTool('barcode')">
-                <i class="fas fa-barcode"></i><span>باركود</span>
+
+            <!-- Menu button -->
+            <button class="menu-btn" onclick="toggleMenu()" title="المزيد من الأدوات">
+                <i class="fas fa-bars"></i>
+                <span>قائمة</span>
             </button>
-            <button class="tool-btn" data-tool="qrcode" onclick="setTool('qrcode')">
-                <i class="fas fa-qrcode"></i><span>QR</span>
-            </button>
-            <button class="tool-btn" data-tool="image" onclick="setTool('image')">
-                <i class="fas fa-image"></i><span>صورة</span>
-            </button>
-            <button class="tool-btn" data-tool="icon" onclick="setTool('icon')">
-                <i class="fas fa-icons"></i><span>أيقونة</span>
-            </button>
-            <button class="tool-btn" data-tool="line" onclick="setTool('line')">
-                <i class="fas fa-minus"></i><span>خط</span>
-            </button>
-            <button class="tool-btn" data-tool="rectangle" onclick="setTool('rectangle')">
-                <i class="far fa-square"></i><span>مستطيل</span>
-            </button>
-            <button class="tool-btn" data-tool="table" onclick="setTool('table')">
-                <i class="fas fa-table"></i><span>جدول</span>
-            </button>
-            <button class="tool-btn" data-tool="time" onclick="setTool('time')">
-                <i class="fas fa-clock"></i><span>وقت</span>
-            </button>
-            <button class="tool-btn" data-tool="excel" onclick="setTool('excel')">
-                <i class="fas fa-file-excel"></i><span>Excel</span>
-            </button>
+
+            <!-- Dropdown Menu (hidden tools) -->
+            <div class="tools-dropdown" id="toolsDropdown">
+                <div style="padding: 8px 12px; font-size: 11px; color: #999; font-weight: 600;">أدوات إضافية</div>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" onclick="triggerTool('barcode')">
+                    <i class="fas fa-barcode"></i> باركود
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('qrcode')">
+                    <i class="fas fa-qrcode"></i> QR
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('image')">
+                    <i class="fas fa-image"></i> صورة
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('icon')">
+                    <i class="fas fa-icons"></i> أيقونة
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" onclick="triggerTool('line')">
+                    <i class="fas fa-minus"></i> خط
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('rectangle')">
+                    <i class="far fa-square"></i> مستطيل
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('table')">
+                    <i class="fas fa-table"></i> جدول
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('time')">
+                    <i class="fas fa-clock"></i> وقت
+                </button>
+                <button class="dropdown-item" onclick="triggerTool('excel')">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+            </div>
         </div>
 
         <!-- Canvas Area -->
@@ -376,6 +452,37 @@ function init() {
     drawRulers();
     setupKeyboard();
     window.addEventListener('resize', drawRulers);
+
+    document.addEventListener('click', (e) => {
+        const sidebar = document.querySelector('.left-sidebar');
+        const dropdown = document.getElementById('toolsDropdown');
+        if (!sidebar.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+}
+
+/* =========================
+   Menu Toggle
+   ========================= */
+function toggleMenu() {
+    const dropdown = document.getElementById('toolsDropdown');
+    dropdown.classList.toggle('show');
+}
+
+function triggerTool(tool) {
+    toggleMenu();
+    setTool(tool);
+}
+
+/* =========================
+   Select Mode
+   ========================= */
+function setSelectMode() {
+    currentTool = 'select';
+    document.getElementById('btnSelect').classList.add('active');
+    document.getElementById('btnText').classList.remove('active');
+    canvas.style.cursor = 'default';
 }
 
 /* =========================
@@ -426,50 +533,49 @@ function drawRulers() {
    ========================= */
 function setTool(tool) {
     currentTool = tool;
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
-    canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
 
-    // Auto-add elements when tool clicked (no canvas click needed)
-    if (tool === 'text') {
-        addTextAuto();
-        setTool('select');
-    } else if (tool === 'barcode') {
+    if (tool === 'barcode') {
         addBarcodeAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'qrcode') {
         addQRCodeAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'image') {
-        // Image still needs file picker, so we trigger it
         document.getElementById('imageInput').dataset.auto = 'true';
         document.getElementById('imageInput').click();
+        currentTool = 'select';
     } else if (tool === 'icon') {
         addIconAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'line') {
         addLineAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'rectangle') {
         addRectangleAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'table') {
         addTableAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'time') {
         addTimeAuto();
-        setTool('select');
+        currentTool = 'select';
     } else if (tool === 'excel') {
         document.getElementById('excelInput').dataset.auto = 'true';
         document.getElementById('excelInput').click();
+        currentTool = 'select';
     }
+    updateSidebarActive();
+}
+
+function updateSidebarActive() {
+    document.getElementById('btnSelect').classList.toggle('active', currentTool === 'select');
+    document.getElementById('btnText').classList.remove('active');
 }
 
 function canvasClick(e) {
     if (e.target.closest('.design-element')) return;
     if (e.target !== canvas) return;
     if (currentTool === 'select') { deselectAll(); return; }
-    // Manual click on canvas for non-auto tools (if any)
 }
 
 /* =========================
@@ -486,7 +592,6 @@ function createElement(x, y, w, h, type) {
     content.className = 'content';
     el.appendChild(content);
 
-    // Resize handles — ALL elements including text
     const handles = ['nw','n','ne','e','se','s','sw','w'];
     handles.forEach(dir => {
         const h = document.createElement('div');
@@ -617,6 +722,7 @@ function addTextAuto() {
     c.style.cursor = 'move';
 
     autoFitText(el);
+    setSelectMode();
 }
 
 /* ----- Barcode — Auto center ----- */
@@ -779,7 +885,6 @@ function deselectAll() {
    ========================= */
 function startDrag(e, el) {
     if (e.target.classList.contains('resize-handle')) return;
-    if (currentTool !== 'select') return;
 
     e.stopPropagation();
     selectElement(el);
@@ -853,7 +958,7 @@ function stopResize() {
 }
 
 /* =========================
-   Attributes Panel — NO Position and size for text
+   Attributes Panel
    ========================= */
 function showAttributes(el) {
     const type = el.dataset.type;
@@ -861,7 +966,6 @@ function showAttributes(el) {
 
     let html = '';
 
-    // Show Position and size ONLY for non-text elements
     if (type !== 'text') {
         const left = parseFloat(el.style.left) || 0;
         const top = parseFloat(el.style.top) || 0;
@@ -981,7 +1085,6 @@ function updateAttributes() { if (selectedElement) showAttributes(selectedElemen
 function updateElementFromAttr() {
     if (!selectedElement) return;
 
-    // Only update position/size for non-text elements
     if (selectedElement.dataset.type !== 'text') {
         const x = parseFloat(document.getElementById('attrX').value) || 0;
         const y = parseFloat(document.getElementById('attrY').value) || 0;
