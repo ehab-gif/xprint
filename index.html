@@ -508,7 +508,7 @@ function drawRulers() {
         rulerTop.appendChild(mark);
         if (i % 50 === 0) {
             const lbl = document.createElement('span');
-            lbl.style.cssText = `position:absolute; right:${i+2}px; bottom:14px; font-size:9px; color:#333;`;
+            lbl.style.cssText = `position:absolute; right:${i+2}px; bottom:14px; font-size:10px; color:#333;`;
             lbl.textContent = Math.round(i / PX_PER_MM);
             rulerTop.appendChild(lbl);
         }
@@ -704,18 +704,18 @@ function setTextAlign(align) {
     showAttributes(selectedElement);
 }
 
-/* ----- Text — Auto center ----- */
+/* ----- Text — Auto center بحجم الورقة كاملة و 14px افتراضي ----- */
 function addTextAuto() {
-    const w = Math.min(180, parseFloat(canvas.style.width) * 0.8);
-    const h = Math.min(60, parseFloat(canvas.style.height) * 0.6);
-    const pos = getCenterPosition(w, h);
-    const el = createElement(pos.x, pos.y, w, h, 'text');
+    const w = parseFloat(canvas.style.width);  // نفس عرض الكانفاس
+    const h = parseFloat(canvas.style.height); // نفس ارتفاع الكانفاس
+    const el = createElement(0, 0, w, h, 'text');
     el.dataset.textContent = 'نص جديد';
     el.dataset.fontFamily = 'Tahoma';
     el.dataset.lineHeight = '1.3';
     el.dataset.textColor = '#000000';
     el.dataset.textAlign = 'center';
-    el.dataset.manualFontSize = 'false';
+    el.dataset.manualFontSize = 'true';
+    el.dataset.fontSize = '14';
 
     const c = el.querySelector('.content');
     c.textContent = 'نص جديد';
@@ -1001,7 +1001,7 @@ function showAttributes(el) {
             <div class="panel-section">
                 <div class="panel-section-title">Font Size <span class="auto-badge" id="autoBadge">${isManual ? 'يدوي' : 'تلقائي'}</span></div>
                 <div class="font-size-controls">
-                    <button class="font-size-btn" onclick="decreaseFontSize()" title="تصغير الخط"><i class="fas fa-font" style="font-size:10px;"></i></button>
+                    <button class="font-size-btn" onclick="decreaseFontSize()" title="تصغير الخط"><i class="fas fa-font" style="font-size:14px;"></i></button>
                     <span class="font-size-display" id="attrFontSizeDisplay">${fs}px</span>
                     <button class="font-size-btn" onclick="increaseFontSize()" title="تكبير الخط"><i class="fas fa-font" style="font-size:18px;"></i></button>
                     <button class="font-size-btn reset" onclick="resetAutoFontSize()" title="إعادة التلقائي"><i class="fas fa-sync-alt"></i> تلقائي</button>
